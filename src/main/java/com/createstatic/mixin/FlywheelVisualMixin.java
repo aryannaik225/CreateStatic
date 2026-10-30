@@ -2,6 +2,7 @@ package com.createstatic.mixin;
 
 import com.createstatic.CreateStaticConfig;
 import com.simibubi.create.content.kinetics.base.SingleAxisRotatingVisual;
+import com.simibubi.create.content.kinetics.chainConveyor.ChainConveyorVisual;
 import com.simibubi.create.content.kinetics.simpleRelays.BracketedKineticBlockEntity;
 import com.simibubi.create.content.kinetics.simpleRelays.BracketedKineticBlockEntityVisual;
 import dev.engine_room.flywheel.api.visual.BlockEntityVisual;
@@ -21,6 +22,15 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * flywheel-lib's AbstractBlockEntityVisual template-method pair (delete() does bookkeeping and
  * calls the _delete() override we see on SingleAxisRotatingVisual), so delete() is safe to call
  * repeatedly - the createstatic$deleted guard just avoids doing it every single frame.
+ *
+ * ChainConveyorVisual is a SingleAxisRotatingVisual subclass too (its update() calls
+ * super.update() via invokespecial, which runs straight into this injected HEAD code), but unlike
+ * a bare shaft/cogwheel it must NOT be torn down wholesale here: the chain conveyor's sprocket
+ * geometry has no chunk-baked static model to fall back on, and deleting it would also wipe its
+ * guards/boxes/rigging SmartRecyclers, which ChainConveyorVisualMixin needs intact to freeze the
+ * wheel in place and selectively hide only the moving packages. Bailing out here before the
+ * delete() lets ChainConveyorVisual's own update() body - and ChainConveyorVisualMixin's
+ * RETURN-time freeze - run normally instead.
  */
 @Mixin(SingleAxisRotatingVisual.class)
 public abstract class FlywheelVisualMixin {
@@ -30,6 +40,10 @@ public abstract class FlywheelVisualMixin {
 
     @Inject(method = "update", at = @At("HEAD"), cancellable = true, remap = false)
     private void createstatic$update(float partialTicks, CallbackInfo ci) {
+        if ((Object) this instanceof ChainConveyorVisual) {
+            return;
+        }
+
         if (!CreateStaticConfig.STATIC_MODE_ENABLED) {
             createstatic$deleted = false;
             return;

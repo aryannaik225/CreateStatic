@@ -11,6 +11,7 @@
 ## External Reference Directory
 - Extracted assets, blockstates, models, and class files from `create-1.20.1-6.0.8.jar` are located at `../CreateReference/`.
 - **Rule:** Never scan the entire `../CreateReference/` folder at once. Only read specific paths inside it when checking a blockstate, model JSON, or decompiled class signature (e.g., `javap -cp` or reading specific paths).
+- **CRITICAL RESTRICTION:** DO NOT run `find`, `grep -r`, or loop `javap` over the entire `../CreateReference` directory. It causes terminal hangs. If you need a class signature, run `javap` ONLY on the exact, specific file path you need (e.g., `javap -p com/simibubi/create/.../BeltRenderer.class`). If you are unsure of the exact path, just write the Mixin based on your best guess and let `./gradlew build` catch any signature errors—the Gradle compiler is much faster than brute-force scanning.
 
 ## Core Architecture (How Static Rendering Works)
 1. **Toggle State:** `CreateStaticConfig.STATIC_MODE_ENABLED` (boolean, toggled in-game via `F9` keybind).

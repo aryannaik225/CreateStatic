@@ -10,7 +10,12 @@
     "FlywheelVisualMixin",
     "BracketedKineticBlockEntityVisualMixin",
     "BracketedKineticBlockModelMixin",
-    "BakedModelWrapperAccessor"
+    "BakedModelWrapperAccessor",
+    "BeltRendererMixin",
+    "BeltVisualMixin",
+    "ChainConveyorRendererMixin",
+    "ChainConveyorVisualMixin",
+    "SingleAxisRotatingVisualAccessor"
   ],
   "Injectors": {
     "defaultRequire": 1
