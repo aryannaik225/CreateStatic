@@ -4,7 +4,7 @@ import com.createstatic.CreateStaticConfig;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntityRenderer;
-import com.simibubi.create.content.kinetics.gearbox.GearboxBlock;
+import com.simibubi.create.content.kinetics.chainDrive.ChainDriveBlock;
 import com.simibubi.create.content.kinetics.simpleRelays.CogWheelBlock;
 import com.simibubi.create.content.kinetics.simpleRelays.ShaftBlock;
 import com.simibubi.create.content.kinetics.simpleRelays.encased.EncasedShaftBlock;
@@ -28,7 +28,7 @@ public abstract class KineticBlockEntityRendererMixin {
 
         Block block = blockEntity.getBlockState().getBlock();
         if (block instanceof ShaftBlock || block instanceof CogWheelBlock
-                || block instanceof GearboxBlock || block instanceof EncasedShaftBlock) {
+                || block instanceof EncasedShaftBlock || block instanceof ChainDriveBlock) {
             ci.cancel();
         }
     }

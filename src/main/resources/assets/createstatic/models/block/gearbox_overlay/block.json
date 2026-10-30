@@ -1,0 +1,5 @@
+{
+  "loader": "createstatic:static_shaft_overlay",
+  "base": "create:block/gearbox/block",
+  "static": "createstatic:block/gearbox_overlay/block_with_shaft"
+}

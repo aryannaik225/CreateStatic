@@ -15,7 +15,16 @@
     "BeltVisualMixin",
     "ChainConveyorRendererMixin",
     "ChainConveyorVisualMixin",
-    "SingleAxisRotatingVisualAccessor"
+    "GearboxRendererMixin",
+    "GearboxVisualMixin",
+    "SplitShaftRendererMixin",
+    "SplitShaftVisualMixin",
+    "KineticBlockEntityMixin",
+    "BeltBlockEntityMixin",
+    "ChainConveyorBlockEntityMixin",
+    "SingleAxisRotatingVisualAccessor",
+    "InstanceRecyclerAccessor",
+    "SmartRecyclerAccessor"
   ],
   "Injectors": {
     "defaultRequire": 1

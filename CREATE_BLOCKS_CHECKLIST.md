@@ -43,21 +43,21 @@ Abstract classes other blocks build on. No direct registration/blockstate — do
 - [x] `ChainConveyorBlockEntity` (extends `KineticBlockEntity`) — drives `ChainConveyorVisual` (frozen via `ChainConveyorVisualMixin` + `SingleAxisRotatingVisualAccessor`) and `ChainConveyorRenderer` (BER, frozen via `ChainConveyorRendererMixin`)
   - Required carving out an exclusion in the existing `FlywheelVisualMixin` (`SingleAxisRotatingVisual.update()`): `ChainConveyorVisual` is the one subclass of that base, and the pre-existing delete-on-update logic would have wiped its sprocket/boxes/rigging wholesale instead of freezing them in place
 
-### Chain Drive (`kinetics/chainDrive`) — feeds chain conveyors
-- [ ] `ChainDriveBlock` (extends `RotatedPillarKineticBlock`)
-- [ ] `ChainGearshiftBlock` (extends `ChainDriveBlock`)
-- [ ] `ChainGearshiftBlockEntity` (extends `KineticBlockEntity`)
+### Chain Drive (`kinetics/chainDrive`) — feeds chain conveyors — DONE
+- [x] `ChainDriveBlock` (extends `RotatedPillarKineticBlock`) — no dedicated Renderer/Visual class in the package, so it rides the generic `KineticBlockEntityRenderer`/`SingleAxisRotatingVisual` path, same as `ShaftBlock`; doesn't override `getRenderShape()` itself but its casing model (`encased_chain_drive/*`, 24 variants across axis/part) already bakes statically, matching the `EncasedShaftBlock` precedent (no `KineticBlockMixin` entry needed) — cancelled via the generic `KineticBlockEntityRendererMixin` (`instanceof ChainDriveBlock`) + the existing generic `FlywheelVisualMixin`
+- [x] `ChainGearshiftBlock` (extends `ChainDriveBlock`) — covered by the same `instanceof ChainDriveBlock` check (subclass) and casing (`adjustable_chain_gearshift_*`, 48 variants incl. powered state)
+- [x] `ChainGearshiftBlockEntity` (extends `KineticBlockEntity`) — no dedicated renderer/visual, covered as above
 
-## Transmission (`kinetics/transmission`)
-- [ ] `GearboxBlock` (extends `RotatedPillarKineticBlock`)
-- [ ] `GearboxBlockEntity` (extends `DirectionalShaftHalvesBlockEntity`)
-- [ ] `ClutchBlock` (extends `GearshiftBlock`)
-- [ ] `ClutchBlockEntity` (extends `SplitShaftBlockEntity`)
-- [ ] `GearshiftBlock` (extends `AbstractEncasedShaftBlock`)
-- [ ] `GearshiftBlockEntity` (extends `SplitShaftBlockEntity`)
-- [ ] `SplitShaftBlockEntity` (extends `DirectionalShaftHalvesBlockEntity`)
-- [ ] `sequencer/SequencedGearshiftBlock` (extends `HorizontalAxisKineticBlock`)
-- [ ] `sequencer/SequencedGearshiftBlockEntity` (extends `SplitShaftBlockEntity`)
+## Transmission (`kinetics/transmission`) — DONE
+- [x] `GearboxBlock` (extends `RotatedPillarKineticBlock`) — casing model (`gearbox/block`, 3 axis variants) already bakes the full andesite-cased body statically, so no `KineticBlockMixin` entry needed; `GearboxRenderer` declares its own `renderSafe(GearboxBlockEntity, ...)` override (draws only the two perpendicular `SHAFT_HALF` connector pegs) which shadows the generic injection in `KineticBlockEntityRendererMixin` — cancelled instead via dedicated `GearboxRendererMixin`
+- [x] `GearboxBlockEntity` (extends `DirectionalShaftHalvesBlockEntity`) — visualized by `GearboxVisual`, which extends `KineticBlockEntityVisual` (not `SingleAxisRotatingVisual`) so the generic `FlywheelVisualMixin` never sees it; its `keys` `EnumMap<Direction, RotatingInstance>` (the same two connector pegs) is hidden via dedicated `GearboxVisualMixin`
+- [x] `ClutchBlock` (extends `GearshiftBlock`) — casing (`clutch/block`, `clutch/block_powered`) already bakes statically; shares `SplitShaftRenderer`/`SplitShaftVisual` with Gearshift/SequencedGearshift below
+- [x] `ClutchBlockEntity` (extends `SplitShaftBlockEntity`) — covered by the shared `SplitShaftRendererMixin`/`SplitShaftVisualMixin`
+- [x] `GearshiftBlock` (extends `AbstractEncasedShaftBlock`) — casing (`gearshift/block`, `gearshift/block_powered`) already bakes statically, matching `EncasedShaftBlock`
+- [x] `GearshiftBlockEntity` (extends `SplitShaftBlockEntity`) — `SplitShaftRenderer` declares its own `renderSafe(SplitShaftBlockEntity, ...)` override (same shadowing issue as `GearboxRenderer`) — cancelled via dedicated `SplitShaftRendererMixin`
+- [x] `SplitShaftBlockEntity` (extends `DirectionalShaftHalvesBlockEntity`) — abstract base shared by Clutch/Gearshift/SequencedGearshift, no direct registration; `SplitShaftVisual` extends `KineticBlockEntityVisual` (not `SingleAxisRotatingVisual`), so its `keys` `ArrayList<RotatingInstance>` (the internal half-shaft stub) is hidden via dedicated `SplitShaftVisualMixin`
+- [x] `sequencer/SequencedGearshiftBlock` (extends `HorizontalAxisKineticBlock`) — casing (`sequenced_gearshift/idle`, `seq_1`..`seq_5`) already bakes statically; no dedicated renderer/visual of its own
+- [x] `sequencer/SequencedGearshiftBlockEntity` (extends `SplitShaftBlockEntity`) — reuses `SplitShaftRenderer`/`SplitShaftVisual`, so it's covered for free by the same two dedicated mixins used for Clutch/Gearshift
 
 ## Processing Machines
 - [ ] `millstone/MillstoneBlock` (extends `KineticBlock`)
