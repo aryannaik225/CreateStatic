@@ -17,16 +17,17 @@ import java.util.ArrayList;
 
 /**
  * Shared Flywheel visual for Clutch, Gearshift and SequencedGearshift (all three BlockEntities
- * extend SplitShaftBlockEntity and are visualized by this one class). Like GearboxVisual it extends
- * the generic KineticBlockEntityVisual rather than SingleAxisRotatingVisual, so FlywheelVisualMixin
- * never sees it and the two internal half-shaft RotatingInstances in `keys` have to be hidden here
- * directly instead.
+ * extend SplitShaftBlockEntity and are visualized by this one class).
  *
- * This used to re-apply visibility at update()'s RETURN every tick, which meant update()'s real
- * body - re-running RotatingInstance#setup()+setChanged() for every entry in keys - still ran to
- * completion first, unconditionally, static mode or not. It's now a one-shot: HEAD hides both
- * half-shaft stubs exactly once on the transition into static mode and cancels the rest of update()
- * outright, and un-hides once on the way back out so the real body resumes computing live rotation.
+ * PIVOT: the two internal half-shaft RotatingInstances in `keys` must stay visible and
+ * Flywheel-rendered (see FlywheelVisualMixin) rather than hidden - only their rotationalSpeed needs
+ * pinning to zero so Flywheel has nothing to animate and the CPU has nothing to recompute.
+ *
+ * This is a one-shot: HEAD zeroes both half-shaft stubs' rotationalSpeed exactly once on the
+ * transition into static mode and cancels the rest of update() outright (which would otherwise
+ * re-run RotatingInstance#setup()+setChanged() for every entry in keys every tick). On the way back
+ * out, clearing the frozen flag alone is enough - update() is no longer cancelled, so its real body
+ * resumes computing live rotation itself.
  */
 @Mixin(SplitShaftVisual.class)
 public abstract class SplitShaftVisualMixin {
@@ -42,8 +43,7 @@ public abstract class SplitShaftVisualMixin {
     private void createstatic$onInit(VisualizationContext context, SplitShaftBlockEntity blockEntity,
                                        float partialTick, CallbackInfo ci) {
         if (CreateStaticConfig.STATIC_MODE_ENABLED) {
-            createstatic$applyVisibility(false);
-            createstatic$frozen = true;
+            createstatic$freeze();
         }
     }
 
@@ -51,20 +51,22 @@ public abstract class SplitShaftVisualMixin {
     private void createstatic$updateHead(float partialTicks, CallbackInfo ci) {
         if (CreateStaticConfig.STATIC_MODE_ENABLED) {
             if (!createstatic$frozen) {
-                createstatic$applyVisibility(false);
-                createstatic$frozen = true;
+                createstatic$freeze();
             }
             ci.cancel();
-        } else if (createstatic$frozen) {
-            createstatic$applyVisibility(true);
+        } else {
             createstatic$frozen = false;
         }
     }
 
     @Unique
-    private void createstatic$applyVisibility(boolean visible) {
+    private void createstatic$freeze() {
         for (RotatingInstance rotatingModel : keys) {
-            rotatingModel.setVisible(visible);
+            if (rotatingModel != null) {
+                rotatingModel.rotationalSpeed = 0f;
+                rotatingModel.setChanged();
+            }
         }
+        createstatic$frozen = true;
     }
 }

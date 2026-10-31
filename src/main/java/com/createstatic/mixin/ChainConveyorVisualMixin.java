@@ -4,39 +4,26 @@ import com.createstatic.CreateStaticConfig;
 import com.simibubi.create.content.kinetics.base.RotatingInstance;
 import com.simibubi.create.content.kinetics.chainConveyor.ChainConveyorBlockEntity;
 import com.simibubi.create.content.kinetics.chainConveyor.ChainConveyorVisual;
-import dev.engine_room.flywheel.api.instance.Instance;
 import dev.engine_room.flywheel.api.visual.DynamicVisual;
 import dev.engine_room.flywheel.api.visual.TickableVisual;
 import dev.engine_room.flywheel.api.visualization.VisualizationContext;
-import dev.engine_room.flywheel.lib.instance.TransformedInstance;
-import dev.engine_room.flywheel.lib.visual.util.InstanceRecycler;
-import dev.engine_room.flywheel.lib.visual.util.SmartRecycler;
-import net.minecraft.resources.ResourceLocation;
-import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * rotatingModel (the CHAIN_CONVEYOR_SHAFT sprocket/shaft piece) is inherited from
- * SingleAxisRotatingVisual and is GPU-animated the same way the belt pulley is - its speed
- * uniform has to be pinned to zero rather than deleted, since the guards/wheel geometry around it
- * must stay visible. It's reached via SingleAxisRotatingVisualAccessor rather than @Shadow since
- * the field is only declared on the superclass's own bytecode, not on ChainConveyorVisual.
+ * PIVOT: the CHAIN_CONVEYOR_SHAFT sprocket and the cardboard-package/rigging instances must all stay
+ * visible and Flywheel-rendered rather than hidden - hiding them was only ever a stand-in for the GPU
+ * rendering we're now keeping, and forcing everything onto the CPU chunk builder instead is exactly
+ * what caused the ~29ms/frame Indigo/culling cost this pivot undoes.
  *
- * boxes/rigging are the cardboard-package and rigging-hook SmartRecyclers. The real beginFrame()
- * walks loopingPackages/travellingPackages and calls get() per visible package every frame, then
- * discardExtra() to recycle (delete()) whatever wasn't touched - that is the normal, intended use
- * of discardExtra(). Calling resetCount()+discardExtra() ourselves on every single frame (the
- * previous approach here) instead forced every already-allocated box/rigging instance through
- * delete() and reallocation on every frame regardless of whether anything changed, which is the
- * per-frame alloc/delete churn that caused the memory leak and lag spikes. Hiding is now done
- * exactly once per transition into/out of static mode: cancel beginFrame entirely so it can't
- * reallocate anything, and flip setVisible() on whatever instances already exist via
- * InstanceRecyclerAccessor/SmartRecyclerAccessor - no delete(), no allocation, no per-frame work.
+ * rotatingModel (the sprocket/shaft piece, inherited from SingleAxisRotatingVisual) is handled the
+ * same way as the belt pulley and the plain shaft/cogwheel instances: its speed uniform is pinned to
+ * zero rather than touching visibility at all. It's reached via SingleAxisRotatingVisualAccessor
+ * rather than @Shadow since the field is only declared on the superclass's own bytecode, not on
+ * ChainConveyorVisual.
  *
  * update() used to be left to run to completion every tick with the shaft re-frozen afterwards at
  * RETURN - that meant update()'s call into super.update() (SingleAxisRotatingVisual#update(),
@@ -51,22 +38,18 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * tick() is a separate per-game-tick entry point (ChainConveyorVisual implements
  * SimpleTickableVisual) that advances the package conveyor animation via
  * ChainConveyorBlockEntity#tickBoxVisuals() - independent of update() and not touched by anything
- * above. The packages it animates are already hidden via beginFrame below, so there's nothing left
- * for it to usefully compute while static; cancelling it removes that per-tick cost too.
+ * above. Cancelling it stops that per-tick CPU cost; the packages simply stay wherever they last
+ * were, still rendered by Flywheel.
+ *
+ * beginFrame() walks loopingPackages/travellingPackages and calls get() per visible package every
+ * frame, then discardExtra() to recycle whatever wasn't touched - real per-frame CPU work that keeps
+ * running regardless of visibility. Since the client-side block entity tick is already cancelled
+ * (see ChainConveyorBlockEntityMixin / SmartBlockEntityMixin), package positions never change while
+ * static, so there is nothing new for this walk to discover - cancelling it outright just removes
+ * that redundant per-frame walk without touching which instances are visible or allocated.
  */
 @Mixin(ChainConveyorVisual.class)
 public abstract class ChainConveyorVisualMixin {
-
-    @Shadow(remap = false)
-    @Final
-    private SmartRecycler<ResourceLocation, TransformedInstance> boxes;
-
-    @Shadow(remap = false)
-    @Final
-    private SmartRecycler<ResourceLocation, TransformedInstance> rigging;
-
-    @Unique
-    private boolean createstatic$packagesHidden = false;
 
     @Unique
     private boolean createstatic$shaftFrozen = false;
@@ -76,7 +59,6 @@ public abstract class ChainConveyorVisualMixin {
                                                   float partialTick, CallbackInfo ci) {
         if (CreateStaticConfig.STATIC_MODE_ENABLED) {
             createstatic$freezeShaft();
-            createstatic$shaftFrozen = true;
         }
     }
 
@@ -85,7 +67,6 @@ public abstract class ChainConveyorVisualMixin {
         if (CreateStaticConfig.STATIC_MODE_ENABLED) {
             if (!createstatic$shaftFrozen) {
                 createstatic$freezeShaft();
-                createstatic$shaftFrozen = true;
             }
             ci.cancel();
         } else {
@@ -101,44 +82,19 @@ public abstract class ChainConveyorVisualMixin {
     }
 
     @Inject(method = "beginFrame", at = @At("HEAD"), cancellable = true, remap = false)
-    private void createstatic$hidePackages(DynamicVisual.Context context, CallbackInfo ci) {
-        if (!CreateStaticConfig.STATIC_MODE_ENABLED) {
-            if (createstatic$packagesHidden) {
-                createstatic$setVisible(boxes, true);
-                createstatic$setVisible(rigging, true);
-                createstatic$packagesHidden = false;
-            }
-            return;
+    private void createstatic$freezeBeginFrame(DynamicVisual.Context context, CallbackInfo ci) {
+        if (CreateStaticConfig.STATIC_MODE_ENABLED) {
+            ci.cancel();
         }
-
-        if (!createstatic$packagesHidden) {
-            createstatic$packagesHidden = true;
-            createstatic$setVisible(boxes, false);
-            createstatic$setVisible(rigging, false);
-        }
-
-        ci.cancel();
     }
 
     @Unique
     private void createstatic$freezeShaft() {
-        if (!CreateStaticConfig.STATIC_MODE_ENABLED) {
-            return;
-        }
         RotatingInstance rotatingModel = ((SingleAxisRotatingVisualAccessor) (Object) this).createstatic$getRotatingModel();
-        if (rotatingModel == null) {
-            return;
+        if (rotatingModel != null) {
+            rotatingModel.rotationalSpeed = 0f;
+            rotatingModel.setChanged();
         }
-        rotatingModel.rotationalSpeed = 0f;
-        rotatingModel.setChanged();
-    }
-
-    @Unique
-    private static void createstatic$setVisible(SmartRecycler<?, ?> recycler, boolean visible) {
-        for (InstanceRecycler<?> instanceRecycler : ((SmartRecyclerAccessor) (Object) recycler).createstatic$getRecyclers().values()) {
-            for (Instance instance : ((InstanceRecyclerAccessor) (Object) instanceRecycler).createstatic$getInstances()) {
-                instance.setVisible(visible);
-            }
-        }
+        createstatic$shaftFrozen = true;
     }
 }

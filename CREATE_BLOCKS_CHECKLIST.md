@@ -88,11 +88,19 @@ Abstract classes other blocks build on. No direct registration/blockstate — do
 - [ ] `fan/NozzleBlockEntity` (n/a — extends `SmartBlockEntity`, not kinetic)
 
 ## Power Generation / Motors
-- [ ] `waterwheel/WaterWheelBlock` (extends `DirectionalKineticBlock`)
-- [ ] `waterwheel/WaterWheelBlockEntity` (extends `GeneratingKineticBlockEntity`)
-- [ ] `waterwheel/LargeWaterWheelBlock` (extends `RotatedPillarKineticBlock`)
-- [ ] `waterwheel/LargeWaterWheelBlockEntity` (extends `WaterWheelBlockEntity`)
+- [x] `waterwheel/WaterWheelBlock` (extends `DirectionalKineticBlock`) — no `getRenderShape()`/tick() override, stays `ENTITYBLOCK_ANIMATED`; no dedicated BE or Block mixin needed
+- [x] `waterwheel/WaterWheelBlockEntity` (extends `GeneratingKineticBlockEntity`) — no tick() override, covered for free by `KineticBlockEntityMixin`/`SmartBlockEntityMixin`/`SmartBlockEntityTickerMixin`; its `WaterWheelVisual` (shared with Large, single `rotatingModel` field) frozen via dedicated `WaterWheelVisualMixin`
+- [x] `waterwheel/LargeWaterWheelBlock` (extends `RotatedPillarKineticBlock`) — same as WaterWheelBlock, no override needed
+- [x] `waterwheel/LargeWaterWheelBlockEntity` (extends `WaterWheelBlockEntity`) — no tick() override of its own either; shares `WaterWheelVisual` (constructed via the `large` factory) with the standard entity, so covered by the same `WaterWheelVisualMixin`
 - [ ] `waterwheel/WaterWheelStructuralBlock` (n/a — extends `DirectionalBlock`, not kinetic)
+## Bearings (`contraptions/bearing`) — partial
+- [x] `WindmillBearingBlock` (extends `BearingBlock`) — no `getRenderShape()` override, stays `ENTITYBLOCK_ANIMATED`; no dedicated Block mixin needed
+- [x] `WindmillBearingBlockEntity` (extends `MechanicalBearingBlockEntity`) — declares its own `tick()` (inherited from `MechanicalBearingBlockEntity`, which itself overrides `GeneratingKineticBlockEntity#tick()` without calling up through it), so the generic `KineticBlockEntityMixin`/`SmartBlockEntityMixin` bases never fire for it — cancelled via dedicated `WindmillBearingBlockEntityMixin`; its `BearingVisual` pivot shaft (inherited `rotatingModel` from `OrientedRotatingVisual`, not overridden) frozen via dedicated `OrientedRotatingVisualMixin`. `BearingVisual`'s separate `topInstance` (angle-driven cap/arm) is left alone — it re-reads the now-frozen angle from the block entity every frame and naturally stays still, nothing to pin there.
+- [ ] `MechanicalBearingBlock` / `MechanicalBearingBlockEntity` — shares `WindmillBearingBlockEntityMixin`'s target class ancestor and the same `BearingVisual`/`OrientedRotatingVisualMixin` freeze, but not yet verified/requested directly
+- [ ] `ClockworkBearingBlock` / `ClockworkBearingBlockEntity` — separate `tick()` override and its own visual, not yet handled
+- [ ] `SailBlock` / `BlankSailBlockItem` (n/a? — the sails themselves move as part of the assembled contraption, not as a standalone kinetic BE; re-verify once Mechanical/Clockwork bearing are handled)
+
+## Motors / Steam Engine / Flywheel / Hand Crank
 - [ ] `motor/CreativeMotorBlock` (extends `DirectionalKineticBlock`)
 - [ ] `motor/CreativeMotorBlockEntity` (extends `GeneratingKineticBlockEntity`)
 - [ ] `steamEngine/SteamEngineBlock` (n/a — extends `FaceAttachedHorizontalDirectionalBlock`, not kinetic)

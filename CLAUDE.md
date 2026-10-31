@@ -21,6 +21,13 @@
    - **BER Cancellation (`KineticBlockEntityRendererMixin`):** Cancel `renderSafe()` at `@At("HEAD")` for targeted blocks so the fallback BlockEntityRenderer does not draw spinning models.
    - **Flywheel 1.0 Cancellation (`FlywheelVisualMixin`):** Intercept Flywheel `1.0.5` visuals (`SingleAxisRotatingVisual`, `BracketedKineticBlockEntityVisual`, etc.) so GPU-instanced rotating models are hidden or skipped when `STATIC_MODE_ENABLED` is true.
 
+## CreateStatic Rendering Baseline (CRITICAL)
+When writing Mixins to freeze kinetic blocks for the CreateStatic mod, you MUST strictly follow this 3-part approach. Do not deviate, or you will cause Vanilla/Indigo CPU culling bottlenecks or RAM leaks:
+
+1. **Keep Flywheel Active:** Do NOT force `RenderShape.MODEL` or cancel generic BERs. Let Flywheel handle the rendering on the GPU.
+2. **Freeze via Flywheel Math:** Do NOT use `.delete()`, recycle instances, hijack `beginFrame` for recycling, or use `.setVisible(false)` in Flywheel. Instead, inject into the Flywheel Visuals (e.g., `update()` or `tick()`) and set `rotationalSpeed`, `scrollSpeed`, or animation timers to `0` when `STATIC_MODE_ENABLED == true`. 
+3. **The Hard Logic Cull:** Inject at `@At("HEAD")` with `cancellable = true` into `SmartBlockEntity.tick()` (or the block's specific tick method if it overrides). If `level.isClientSide()` AND `STATIC_MODE_ENABLED == true`, call `info.cancel()` to kill client-side math.
+
 ## Build & Verification Commands
 - Compile & verify Mixin refmaps: `./gradlew compileJava` or `./gradlew build`
 - Production jar location: `build/libs/createstatic-1.0.0.jar` (must be reobfuscated via `reobfJar`).

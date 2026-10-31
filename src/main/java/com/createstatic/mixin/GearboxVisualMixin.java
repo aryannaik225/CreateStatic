@@ -17,16 +17,17 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.util.EnumMap;
 
 /**
- * GearboxVisual extends the generic KineticBlockEntityVisual rather than SingleAxisRotatingVisual,
- * so it never passes through FlywheelVisualMixin - it has to be handled on its own. `keys` holds up
- * to two RotatingInstance pegs (one per perpendicular axis actually connected to a neighbour).
+ * PIVOT: these pegs must stay visible and Flywheel-rendered (see FlywheelVisualMixin) rather than
+ * hidden - hiding them was only ever a stand-in for the GPU rendering we're now keeping. `keys` holds
+ * up to two RotatingInstance pegs (one per perpendicular axis actually connected to a neighbour); as
+ * with the shaft/cogwheel/chain-drive instances, only their rotationalSpeed needs pinning to zero so
+ * Flywheel has nothing to animate and the CPU has nothing to recompute.
  *
- * This used to re-apply visibility at update()'s RETURN every tick, which meant update()'s real
- * body - re-running updateSourceFacing() and RotatingInstance#setup()+setChanged() for every entry
- * in keys - still ran to completion first, unconditionally, static mode or not. It's now a one-shot:
- * HEAD hides every peg exactly once on the transition into static mode and cancels the rest of
- * update() outright, and un-hides once on the way back out so the real body resumes computing live
- * peg rotation.
+ * This is a one-shot: HEAD zeroes every peg's rotationalSpeed exactly once on the transition into
+ * static mode and cancels the rest of update() outright (which would otherwise re-run
+ * updateSourceFacing() and RotatingInstance#setup()+setChanged() for every entry in keys every tick).
+ * On the way back out, clearing the frozen flag alone is enough - update() is no longer cancelled, so
+ * its real body resumes computing live peg rotation itself.
  */
 @Mixin(GearboxVisual.class)
 public abstract class GearboxVisualMixin {
@@ -42,8 +43,7 @@ public abstract class GearboxVisualMixin {
     private void createstatic$onInit(VisualizationContext context, GearboxBlockEntity blockEntity,
                                        float partialTick, CallbackInfo ci) {
         if (CreateStaticConfig.STATIC_MODE_ENABLED) {
-            createstatic$applyVisibility(false);
-            createstatic$frozen = true;
+            createstatic$freeze();
         }
     }
 
@@ -51,20 +51,22 @@ public abstract class GearboxVisualMixin {
     private void createstatic$updateHead(float partialTicks, CallbackInfo ci) {
         if (CreateStaticConfig.STATIC_MODE_ENABLED) {
             if (!createstatic$frozen) {
-                createstatic$applyVisibility(false);
-                createstatic$frozen = true;
+                createstatic$freeze();
             }
             ci.cancel();
-        } else if (createstatic$frozen) {
-            createstatic$applyVisibility(true);
+        } else {
             createstatic$frozen = false;
         }
     }
 
     @Unique
-    private void createstatic$applyVisibility(boolean visible) {
+    private void createstatic$freeze() {
         for (RotatingInstance rotatingModel : keys.values()) {
-            rotatingModel.setVisible(visible);
+            if (rotatingModel != null) {
+                rotatingModel.rotationalSpeed = 0f;
+                rotatingModel.setChanged();
+            }
         }
+        createstatic$frozen = true;
     }
 }
