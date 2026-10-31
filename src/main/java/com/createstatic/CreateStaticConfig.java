@@ -39,6 +39,29 @@ public class CreateStaticConfig {
      * kinetic parts (shafts/cogs) stay frozen regardless, purely at the Flywheel visual layer
      * (FlywheelVisualMixin and friends), independent of this tick exemption.
      *
+     * Also covers four blocks whose own working animation would otherwise glitch: Steam Engine
+     * (piston/linkage, driven by SteamEngineVisual#animate() off live tick() state), Hand Crank and
+     * Valve Handle (the crank handle only swings while independentAngle is advancing during use), and
+     * Cuckoo Clock (hourHand/minuteHand/door animation - a stopped clock is itself the bug). Their
+     * generic rotating shaft stubs, where present, are still frozen at the Flywheel visual layer
+     * exactly like everything else.
+     *
+     * CRASH/DESYNC POSTMORTEM (EncasedFanBlockEntity): originally given its own dedicated
+     * EncasedFanBlockEntityMixin cancelling tick() unconditionally, same shape as Millstone/Saw - but
+     * unlike those, EncasedFanBlockEntity#tick() isn't just driving a cosmetic countdown. It's what
+     * (re)builds AirCurrent every tick, and Create's player-pushing/item-pushing is done via *client-
+     * side physics prediction* reading that AirCurrent locally, not purely server-authoritative motion
+     * - freezing tick() stopped the client from ever recomputing it, so the client no longer predicted
+     * the push at all (players stopped feeling pushed) while the server kept applying it, and dropped
+     * items visibly fought between the two every tick (the "violent twitch" correction). That dedicated
+     * mixin has been deleted and EncasedFanBlockEntity is exempted here instead, so its tick() (and
+     * thus AirCurrent) runs identically to vanilla on the client. NozzleBlockEntity is exempted
+     * alongside it for the same reason - it redirects/reshapes the fan's AirCurrent into its own
+     * pushing-entities list every tick, the same client-prediction-critical computation. Neither block
+     * has a rotating kinetic part gated by this exemption: the fan's rotor/shaft stay frozen
+     * regardless, purely at the Flywheel visual layer (FanVisualMixin), and NozzleBlockEntity has no
+     * RotatingInstance at all.
+     *
      * CRITICAL: this check used to be `blockEntity instanceof MechanicalPressBlockEntity || ...`,
      * which crashed the game on boot with a ClassCircularityError. SmartBlockEntityMixin and
      * KineticBlockEntityMixin are @Mixin(SmartBlockEntity.class)/@Mixin(KineticBlockEntity.class) -
@@ -59,7 +82,13 @@ public class CreateStaticConfig {
             "MechanicalMixerBlockEntity",
             "DeployerBlockEntity",
             "MechanicalCrafterBlockEntity",
-            "ArmBlockEntity"
+            "ArmBlockEntity",
+            "SteamEngineBlockEntity",
+            "HandCrankBlockEntity",
+            "ValveHandleBlockEntity",
+            "CuckooClockBlockEntity",
+            "EncasedFanBlockEntity",
+            "NozzleBlockEntity"
     );
 
     public static boolean isStaticUntilInUseMachine(BlockEntity blockEntity) {

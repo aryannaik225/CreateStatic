@@ -85,11 +85,11 @@ Abstract classes other blocks build on. No direct registration/blockstate — do
 >
 > **Crash postmortem:** the first version of `isStaticUntilInUseMachine` used `blockEntity instanceof MechanicalPressBlockEntity || ...`, which crashed the game on the loading screen with a `ClassCircularityError`. `SmartBlockEntityMixin`/`KineticBlockEntityMixin` are `@Mixin(SmartBlockEntity.class)`/`@Mixin(KineticBlockEntity.class)` - Mixin merges their injected method bodies directly into `SmartBlockEntity`'s/`KineticBlockEntity`'s own classfiles. An `instanceof MechanicalPressBlockEntity` reference baked into that merged bytecode forces the JVM to resolve `MechanicalPressBlockEntity` *while `SmartBlockEntity`/`KineticBlockEntity` is itself still mid-load* - but `MechanicalPressBlockEntity extends BasinOperatingBlockEntity extends KineticBlockEntity extends SmartBlockEntity`, so resolving it immediately re-enters the very class currently being defined. `CreateStaticConfig` now checks `blockEntity.getClass().getSimpleName()` against a `Set<String>` instead, with no import of or symbolic reference to any of the five subclasses anywhere in the base mixins or in `CreateStaticConfig` itself, which breaks the cycle.
 
-## Fans / Air
-- [ ] `fan/EncasedFanBlock` (extends `DirectionalKineticBlock`)
-- [ ] `fan/EncasedFanBlockEntity` (extends `KineticBlockEntity`)
-- [ ] `fan/NozzleBlock` (n/a — extends `WrenchableDirectionalBlock`, not kinetic)
-- [ ] `fan/NozzleBlockEntity` (n/a — extends `SmartBlockEntity`, not kinetic)
+## Fans / Air — DONE
+- [x] `fan/EncasedFanBlock` (extends `DirectionalKineticBlock`) — no override needed
+- [x] `fan/EncasedFanBlockEntity` (extends `KineticBlockEntity`) — **"Static Until In Use" block (revised after a reported physics bug):** originally given a dedicated `EncasedFanBlockEntityMixin` cancelling `tick()` outright (same shape as Millstone/Saw), since the override calls `super.tick()` then, with no `isClientSide` guard of its own, decrements `airCurrentUpdateCooldown`/`entitySearchCooldown` and rebuilds `AirCurrent`. That broke client-side physics prediction: Create pushes players/items via the *client* reading its own locally-computed `AirCurrent` every tick, not purely server-authoritative motion, so freezing `tick()` stopped the client from ever recomputing it - players stopped feeling pushed, and dropped items twitched violently as the server kept correcting positions the client no longer predicted. `EncasedFanBlockEntityMixin` deleted; `EncasedFanBlockEntity` is now exempted via `CreateStaticConfig#isStaticUntilInUseMachine`/`STATIC_UNTIL_IN_USE_CLASS_NAMES`, so `tick()`/`AirCurrent` run identically to vanilla. `FanVisual` extends `KineticBlockEntityVisual` directly (not `SingleAxisRotatingVisual`) with its own `shaft` (connector) and `fan` (rotor) `RotatingInstance`s and its own `update()` - both still frozen unconditionally via dedicated `FanVisualMixin` (same every-call shape as `SawVisualMixin`), independent of the tick exemption since nothing in `tick()` touches those Flywheel instances directly
+- [x] `fan/NozzleBlock` (n/a — extends `WrenchableDirectionalBlock`, not kinetic) — confirmed, no change
+- [x] `fan/NozzleBlockEntity` (n/a — extends `SmartBlockEntity`, not kinetic) — confirmed via `javap`: no `RotatingInstance`/kinetic state anywhere, but its `tick()` redirects/reshapes the fan's `AirCurrent` into its own pushing-entities list every tick - the same client-prediction-critical computation as the fan itself, so it's exempted alongside `EncasedFanBlockEntity` in `STATIC_UNTIL_IN_USE_CLASS_NAMES` for the same reason (it rides through the generic `SmartBlockEntityMixin`/`SmartBlockEntityTickerMixin` freeze otherwise, since it's a plain `SmartBlockEntity`, not kinetic)
 
 ## Power Generation / Motors
 - [x] `waterwheel/WaterWheelBlock` (extends `DirectionalKineticBlock`) — no `getRenderShape()`/tick() override, stays `ENTITYBLOCK_ANIMATED`; no dedicated BE or Block mixin needed
@@ -97,42 +97,44 @@ Abstract classes other blocks build on. No direct registration/blockstate — do
 - [x] `waterwheel/LargeWaterWheelBlock` (extends `RotatedPillarKineticBlock`) — same as WaterWheelBlock, no override needed
 - [x] `waterwheel/LargeWaterWheelBlockEntity` (extends `WaterWheelBlockEntity`) — no tick() override of its own either; shares `WaterWheelVisual` (constructed via the `large` factory) with the standard entity, so covered by the same `WaterWheelVisualMixin`
 - [ ] `waterwheel/WaterWheelStructuralBlock` (n/a — extends `DirectionalBlock`, not kinetic)
-## Bearings (`contraptions/bearing`) — partial
+## Bearings (`contraptions/bearing`) — DONE
 - [x] `WindmillBearingBlock` (extends `BearingBlock`) — no `getRenderShape()` override, stays `ENTITYBLOCK_ANIMATED`; no dedicated Block mixin needed
 - [x] `WindmillBearingBlockEntity` (extends `MechanicalBearingBlockEntity`) — declares its own `tick()` (inherited from `MechanicalBearingBlockEntity`, which itself overrides `GeneratingKineticBlockEntity#tick()` without calling up through it), so the generic `KineticBlockEntityMixin`/`SmartBlockEntityMixin` bases never fire for it — cancelled via dedicated `WindmillBearingBlockEntityMixin`; its `BearingVisual` pivot shaft (inherited `rotatingModel` from `OrientedRotatingVisual`, not overridden) frozen via dedicated `OrientedRotatingVisualMixin`. **Bugfix:** `BearingVisual`'s separate `topInstance` (the cap/top plate) is *not* actually left alone by the frozen angle — its `beginFrame()` recomputes the top plate's rotation every render frame from `IBearingBlockEntity#getInterpolatedAngle(partialTick - 1)`, a previous/current lerp across the last tick boundary; with the tick cancelled mid-rotation (or nudged by a server resync packet independent of the frozen client tick), that pair can stay mismatched, and re-interpolating it every frame against a live `partialTick` produced a visible twitch instead of a clean stop. Fixed via dedicated `BearingVisualMixin`: lets `beginFrame()` run normally exactly once after the transition into static mode (capturing wherever the interpolated angle actually is, per the "freeze in place" rule), then cancels every call after that.
-- [ ] `MechanicalBearingBlock` / `MechanicalBearingBlockEntity` — shares `WindmillBearingBlockEntityMixin`'s target class ancestor and the same `BearingVisual`/`OrientedRotatingVisualMixin` freeze, but not yet verified/requested directly
-- [ ] `ClockworkBearingBlock` / `ClockworkBearingBlockEntity` — separate `tick()` override and its own visual, not yet handled
-- [ ] `SailBlock` / `BlankSailBlockItem` (n/a? — the sails themselves move as part of the assembled contraption, not as a standalone kinetic BE; re-verify once Mechanical/Clockwork bearing are handled)
+- [x] `MechanicalBearingBlock` (extends `BearingBlock`) — no override needed
+- [x] `MechanicalBearingBlockEntity` (extends `GeneratingKineticBlockEntity`) — declares its own `tick()` (overrides rather than calling up through the generic bases), driving `angle`/`applyRotation()` and the attached `ControlledContraptionEntity` — cancelled via dedicated `MechanicalBearingBlockEntityMixin` (separate from `WindmillBearingBlockEntityMixin`, since `WindmillBearingBlockEntity` is a distinct subclass with its own `tick()` override — Mixin only merges into the exact class targeted). Shares the same `BearingVisual`/`OrientedRotatingVisualMixin`/`BearingVisualMixin` freeze
+- [x] `ClockworkBearingBlock` (extends `BearingBlock`) — no override needed
+- [x] `ClockworkBearingBlockEntity` (extends `KineticBlockEntity`) — declares its own `tick()`, driving `hourAngle`/`minuteAngle` and the `hourHand`/`minuteHand` `ControlledContraptionEntity`s via `applyRotations()` — cancelled via dedicated `ClockworkBearingBlockEntityMixin`. No dedicated Clockwork visual class exists in the package — it shares `BearingVisual` (via `OrientedRotatingVisual`'s inherited `rotatingModel`) just like Mechanical/Windmill, already frozen for free
+- [x] `SailBlock` / `BlankSailBlockItem` (n/a — the sails themselves move as part of the assembled contraption via `ControlledContraptionEntity`, not as a standalone kinetic BE; covered transitively by the three bearing `tick()` cancels above, which stop the contraption's angle from advancing)
 
-## Motors / Steam Engine / Flywheel / Hand Crank
-- [ ] `motor/CreativeMotorBlock` (extends `DirectionalKineticBlock`)
-- [ ] `motor/CreativeMotorBlockEntity` (extends `GeneratingKineticBlockEntity`)
-- [ ] `steamEngine/SteamEngineBlock` (n/a — extends `FaceAttachedHorizontalDirectionalBlock`, not kinetic)
-- [ ] `steamEngine/SteamEngineBlockEntity` (n/a — extends `SmartBlockEntity`, not kinetic)
-- [ ] `steamEngine/PoweredShaftBlock` (extends `AbstractShaftBlock`)
-- [ ] `steamEngine/PoweredShaftBlockEntity` (extends `GeneratingKineticBlockEntity`)
-- [ ] `flywheel/FlywheelBlock` (extends `RotatedPillarKineticBlock`) — *note: this is the Create "Flywheel" machine block, unrelated to the Flywheel (Engine) rendering mod*
-- [ ] `flywheel/FlywheelBlockEntity` (extends `KineticBlockEntity`)
-- [ ] `crank/HandCrankBlock` (extends `DirectionalKineticBlock`)
-- [ ] `crank/HandCrankBlockEntity` (extends `GeneratingKineticBlockEntity`)
-- [ ] `crank/ValveHandleBlock` (extends `HandCrankBlock`)
-- [ ] `crank/ValveHandleBlockEntity` (extends `HandCrankBlockEntity`)
+## Motors / Steam Engine / Flywheel / Hand Crank — DONE
+- [x] `motor/CreativeMotorBlock` (extends `DirectionalKineticBlock`) — no override needed
+- [x] `motor/CreativeMotorBlockEntity` (extends `GeneratingKineticBlockEntity`) — **no new mixin needed at all**: no `tick()` override of its own (only `initialize()`/capability plumbing), so it rides the already-cancelled `KineticBlockEntity#tick()` for free; no dedicated Visual class either (only `CreativeMotorRenderer`, a plain BER with no rotating part of its own), generic shaft stub covered by `FlywheelVisualMixin`
+- [x] `steamEngine/SteamEngineBlock` (n/a — extends `FaceAttachedHorizontalDirectionalBlock`, not kinetic)
+- [x] `steamEngine/SteamEngineBlockEntity` (n/a — extends `SmartBlockEntity`, not kinetic, but **"Static Until In Use" block** — would otherwise still be caught by the generic `SmartBlockEntityMixin`/`SmartBlockEntityTickerMixin` client-side freeze since those target the shared `SmartBlockEntity` ancestor regardless of kinetic-ness. Its own `tick()` drives `prevAngle`/the piston target angle that `SteamEngineVisual#beginFrame()`/`animate()` reads every frame to transform `piston`/`linkage`/`connector` (plain `TransformedInstance`s, no `RotatingInstance` to freeze) — cancelling it would freeze the piston mid-stroke and desync it from server state. Now exempted via `CreateStaticConfig#isStaticUntilInUseMachine`/`STATIC_UNTIL_IN_USE_CLASS_NAMES`, so it ticks normally exactly like vanilla; no dedicated Visual mixin needed since nothing in `SteamEngineVisual` needs freezing
+- [x] `steamEngine/PoweredShaftBlock` (extends `AbstractShaftBlock`) — no override needed
+- [x] `steamEngine/PoweredShaftBlockEntity` (extends `GeneratingKineticBlockEntity`) — **no new mixin needed at all**: no `tick()` override of its own, rides the already-cancelled base for free; no dedicated `PoweredShaftVisual` class exists, so its visible rotating shaft is the generic `ShaftVisual`/`SingleAxisRotatingVisual`, already frozen for free by `FlywheelVisualMixin`
+- [x] `flywheel/FlywheelBlock` (extends `RotatedPillarKineticBlock`) — *this is the Create "Flywheel" machine block, unrelated to the Flywheel (Engine) rendering mod* — no override needed
+- [x] `flywheel/FlywheelBlockEntity` (extends `KineticBlockEntity`) — declares its own `tick()` (advancing `visualSpeed`/`angle`, shadowing the generic base) — cancelled via dedicated `FlywheelBlockEntityMixin`. `FlywheelVisual` extends `KineticBlockEntityVisual` directly (not `SingleAxisRotatingVisual`) with its own `shaft` `RotatingInstance` and `update()` — frozen via dedicated `CreateFlywheelVisualMixin` (named to avoid colliding with the existing engine-level `FlywheelVisualMixin`, which targets `dev.engine_room.flywheel`'s `SingleAxisRotatingVisual`). The `wheel` `TransformedInstance` needs no separate handling — it's repositioned every frame purely from the now-frozen `angle`
+- [x] `crank/HandCrankBlock` (extends `DirectionalKineticBlock`) — no override needed
+- [x] `crank/HandCrankBlockEntity` (extends `GeneratingKineticBlockEntity`) — **"Static Until In Use" block:** its own `tick()` advances `independentAngle`/`chasingVelocity` while `inUse`, which `HandCrankVisual#beginFrame()`/`rotateCrank()` reads every frame to swing the crank handle (`crank`, a `TransformedInstance`) — cancelling it unconditionally would make right-clicking the crank do nothing visually. Now exempted via `STATIC_UNTIL_IN_USE_CLASS_NAMES`, so it ticks normally. `HandCrankVisual`'s separate `rotatingModel` (the generic connecting shaft stub, spinning off the live network speed via `shouldRenderShaft()` regardless of active use) is still frozen like every other shaft, via dedicated `HandCrankVisualMixin` — leaving `beginFrame()`/`rotateCrank()` completely untouched
+- [x] `crank/ValveHandleBlock` (extends `HandCrankBlock`) — no override needed
+- [x] `crank/ValveHandleBlockEntity` (extends `HandCrankBlockEntity`) — overrides `tick()` again itself (different simple name than its parent, so needed its own separate entry in `STATIC_UNTIL_IN_USE_CLASS_NAMES`) for the same reason as Hand Crank. `ValveHandleVisual` has no `RotatingInstance` field at all (`shouldRenderShaft()` returns false for valve handles) — only the `crank` `TransformedInstance`, already handled correctly once the BE ticks normally; no dedicated Visual mixin needed
 
-## Gantry
-- [ ] `gantry/GantryShaftBlock` (extends `DirectionalKineticBlock`)
-- [ ] `gantry/GantryShaftBlockEntity` (extends `KineticBlockEntity`)
+## Gantry — DONE
+- [x] `gantry/GantryShaftBlock` (extends `DirectionalKineticBlock`) — no override needed
+- [x] `gantry/GantryShaftBlockEntity` (extends `KineticBlockEntity`) — **no new mixin needed at all**: no `tick()` override of its own, rides the already-cancelled base for free; its visual is `OrientedRotatingVisual` (the same base shared with `BearingVisual`), whose `rotatingModel` pivot shaft is already frozen for free by the existing `OrientedRotatingVisualMixin`
 
-## Speed / Gauges / Misc
-- [ ] `speedController/SpeedControllerBlock` (extends `HorizontalAxisKineticBlock`)
-- [ ] `speedController/SpeedControllerBlockEntity` (extends `KineticBlockEntity`)
-- [ ] `gauge/GaugeBlock` (extends `DirectionalAxisKineticBlock`)
-- [ ] `gauge/GaugeBlockEntity` (extends `KineticBlockEntity`, abstract)
-- [ ] `gauge/SpeedGaugeBlockEntity` (extends `GaugeBlockEntity`)
-- [ ] `gauge/StressGaugeBlockEntity` (extends `GaugeBlockEntity`)
-- [ ] `turntable/TurntableBlock` (extends `KineticBlock`)
-- [ ] `turntable/TurntableBlockEntity` (extends `KineticBlockEntity`)
-- [ ] `clock/CuckooClockBlock` (extends `HorizontalKineticBlock`)
-- [ ] `clock/CuckooClockBlockEntity` (extends `KineticBlockEntity`)
+## Speed / Gauges / Misc — DONE
+- [x] `speedController/SpeedControllerBlock` (extends `HorizontalAxisKineticBlock`) — no override needed
+- [x] `speedController/SpeedControllerBlockEntity` (extends `KineticBlockEntity`) — **no new mixin needed at all**: no `tick()` override (only `lazyTick()`), rides the already-cancelled base for free; no dedicated Visual class (only `SpeedControllerRenderer`, a plain BER), generic shaft stub covered by `FlywheelVisualMixin`
+- [x] `gauge/GaugeBlock` (extends `DirectionalAxisKineticBlock`) — no override needed
+- [x] `gauge/GaugeBlockEntity` (extends `KineticBlockEntity`, abstract) — declares its own `tick()`, calling up through the already-cancelled base and then, with no `isClientSide` guard of its own, advancing `prevDialState`/`dialState` toward `dialTarget` every tick — cancelled via dedicated `GaugeBlockEntityMixin` on the shared abstract base (covers both subclasses, since neither overrides `tick()` itself)
+- [x] `gauge/SpeedGaugeBlockEntity` (extends `GaugeBlockEntity`) — covered by `GaugeBlockEntityMixin` (no `tick()` override of its own)
+- [x] `gauge/StressGaugeBlockEntity` (extends `GaugeBlockEntity`) — covered by `GaugeBlockEntityMixin` (no `tick()` override of its own). `GaugeVisual` extends `ShaftVisual` (a `SingleAxisRotatingVisual` subclass with no `update()` override), so the connecting shaft is already frozen for free — but the needle (`faces`, a list of `DialFace`s) is reoriented every frame in `beginFrame()` from `dialState`/`prevDialState` interpolated across the last tick boundary, same twitch risk as `BearingVisual`'s `topInstance`. Fixed via dedicated `GaugeVisualMixin`, same one-shot-then-cancel `beginFrame()` pattern as `BearingVisualMixin`
+- [x] `turntable/TurntableBlock` (extends `KineticBlock`) — no override needed
+- [x] `turntable/TurntableBlockEntity` (extends `KineticBlockEntity`) — **no new mixin needed at all**: the decompiled class declares nothing beyond its constructor (no `tick()` override, no dedicated Renderer/Visual class in the package) — fully covered for free by the generic `KineticBlockEntityMixin`/`SmartBlockEntityMixin`/`FlywheelVisualMixin` chain
+- [x] `clock/CuckooClockBlock` (extends `HorizontalKineticBlock`) — no override needed
+- [x] `clock/CuckooClockBlockEntity` (extends `KineticBlockEntity`) — **"Static Until In Use" block:** its own `tick()` advances `hourHand`/`minuteHand`/`animationProgress` (`LerpedFloat`s) and triggers the door/figure-pop animation on the hour — a stopped clock is itself the visual bug the user flagged, so freezing it would be wrong, not just glitchy. Now exempted via `STATIC_UNTIL_IN_USE_CLASS_NAMES`. No dedicated Flywheel Visual class exists (only `CuckooClockRenderer`, a plain BER that reads the now-correctly-advancing hand/door state directly) — its generic connecting shaft stub is still frozen independently and for free by `FlywheelVisualMixin`, same as every other exempted machine
 
 ---
 
@@ -140,9 +142,13 @@ Abstract classes other blocks build on. No direct registration/blockstate — do
 1. ~~Shaft / Cogwheel~~ ✅ done
 2. ~~Belt~~ ✅ done
 3. ~~Chain Conveyor~~ ✅ done — **Chain Drive / Chain Gearshift** (the sprockets feeding conveyors) still open, up next
-4. Transmission (Gearbox, Clutch, Gearshift, Sequenced Gearshift)
-5. Processing machines (Millstone, Crusher, Mixer, Press, Saw, Drill, Deployer, Crafter, Mechanical Arm)
-6. Fans, Water Wheels, Motors, Steam Engine, Flywheel, Hand Crank
-7. Gantry, Speed Controller, Gauges, Turntable, Cuckoo Clock
+4. ~~Transmission (Gearbox, Clutch, Gearshift, Sequenced Gearshift)~~ ✅ done
+5. ~~Processing machines (Millstone, Crusher, Mixer, Press, Saw, Drill, Deployer, Crafter, Mechanical Arm)~~ ✅ done
+6. ~~Fans, Water Wheels, Bearings, Motors, Steam Engine, Flywheel, Hand Crank~~ ✅ done
+7. ~~Gantry, Speed Controller, Gauges, Turntable, Cuckoo Clock~~ ✅ done
 
 Blocks marked `(n/a)` don't inherit the kinetic base chain directly — they may still visually spin via a child BE or Flywheel visual (e.g. `NozzleBlockEntity`, basin-operating machines), so re-verify them individually once their companion block is handled rather than assuming no work is needed.
+
+## Checklist status: 100% complete
+
+Every kinetic block in `create-1.20.1-6.0.8.jar`'s `kinetics`/`contraptions/bearing` packages has been verified and, where needed, frozen per the [[CreateStatic Rendering Baseline]] (Keep Flywheel Active, zero out speeds/animations in Visuals, Hard Logic Cull on tick()). Five machines (Press, Mixer, Deployer, Crafter, Arm) plus four more (Steam Engine, Hand Crank, Valve Handle, Cuckoo Clock) are exempted from the tick-cancel as "Static Until In Use" (`CreateStaticConfig#STATIC_UNTIL_IN_USE_CLASS_NAMES`) because their own working animation is driven from inside `tick()`; their rotating kinetic parts (shafts/cogs) still freeze independently at the Flywheel visual layer regardless of the exemption.
