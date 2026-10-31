@@ -18,14 +18,22 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * Create block entity shares as its common ancestor (kinetics, item vaults, fluid pipes, frogports),
  * catches the work regardless of which lambda/wrapper called in to get here. Client-side only; the
  * server keeps ticking normally for multiplayer compatibility.
+ *
+ * Exempts the "Static Until In Use" machines (see CreateStaticConfig#isStaticUntilInUseMachine) -
+ * Press/Mixer/Deployer/Crafter/Arm reach this HEAD via their own tick() override calling super
+ * (directly or through BasinOperatingBlockEntity/KineticBlockEntity), and this is where their
+ * behaviour ticking (including the DeferralBehaviour that scans for a recipe to start) actually
+ * lives.
  */
 @Mixin(SmartBlockEntity.class)
 public abstract class SmartBlockEntityMixin {
 
     @Inject(method = "tick", at = @At("HEAD"), cancellable = true, remap = false)
     private void createstatic$tick(CallbackInfo ci) {
-        Level level = ((BlockEntity) (Object) this).getLevel();
-        if (level != null && level.isClientSide && CreateStaticConfig.STATIC_MODE_ENABLED) {
+        BlockEntity blockEntity = (BlockEntity) (Object) this;
+        Level level = blockEntity.getLevel();
+        if (level != null && level.isClientSide && CreateStaticConfig.STATIC_MODE_ENABLED
+                && !CreateStaticConfig.isStaticUntilInUseMachine(blockEntity)) {
             ci.cancel();
         }
     }

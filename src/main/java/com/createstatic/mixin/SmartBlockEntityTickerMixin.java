@@ -21,13 +21,19 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * for every SmartBlockEntity (KineticBlockEntity, BeltBlockEntity and ChainConveyorBlockEntity all use
  * this same shared ticker - none of them override getTicker() with a different wrapper) before any of
  * it runs. Client-side only; the server keeps ticking normally for multiplayer compatibility.
+ *
+ * Exempts the "Static Until In Use" machines (see CreateStaticConfig#isStaticUntilInUseMachine) -
+ * this is the earliest of the three tick choke points (Ticker -> SmartBlockEntity#tick() HEAD ->
+ * KineticBlockEntity#tick() HEAD), so letting their dispatch through here is necessary for any of
+ * their own tick() logic to run at all.
  */
 @Mixin(SmartBlockEntityTicker.class)
 public abstract class SmartBlockEntityTickerMixin {
 
     @Inject(method = "tick", at = @At("HEAD"), cancellable = true, remap = false)
     private void createstatic$tick(Level level, BlockPos pos, BlockState state, BlockEntity blockEntity, CallbackInfo ci) {
-        if (level != null && level.isClientSide && CreateStaticConfig.STATIC_MODE_ENABLED) {
+        if (level != null && level.isClientSide && CreateStaticConfig.STATIC_MODE_ENABLED
+                && !CreateStaticConfig.isStaticUntilInUseMachine(blockEntity)) {
             ci.cancel();
         }
     }

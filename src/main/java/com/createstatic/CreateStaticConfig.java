@@ -3,12 +3,15 @@ package com.createstatic;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.lwjgl.glfw.GLFW;
+
+import java.util.Set;
 
 /**
  * Holds the global static-mode toggle and the F9 keybind that flips it.
@@ -20,6 +23,51 @@ public class CreateStaticConfig {
     public static boolean STATIC_MODE_ENABLED = true;
 
     public static KeyMapping STATIC_MODE_TOGGLE_KEY;
+
+    /**
+     * "Static Until In Use" machines: Mechanical Press, Mechanical Mixer, Deployer, Mechanical
+     * Crafter and Mechanical Arm. Their own tick() (and, for Mixer/Press, the shared
+     * BasinOperatingBlockEntity/KineticBlockEntity tick() they ride through) must NOT be cancelled
+     * by the generic SmartBlockEntityTickerMixin/SmartBlockEntityMixin/KineticBlockEntityMixin
+     * client-side freeze, unlike every other kinetic block entity - the recipe/movement state that
+     * drives their Flywheel visuals (press head, whisk, deployer hand, arm segments) is advanced
+     * inside tick() itself, and the trigger that flips them from idle into an active recipe
+     * (DeferralBehaviour-driven basin/recipe scanning) also only ever runs there. Freezing tick()
+     * unconditionally - as every other kinetic block entity still is - would both desync their
+     * client-side animation from server state (causing the reported twitching) and permanently
+     * strand them idle, since nothing would ever re-check for a recipe to start. Their *rotating*
+     * kinetic parts (shafts/cogs) stay frozen regardless, purely at the Flywheel visual layer
+     * (FlywheelVisualMixin and friends), independent of this tick exemption.
+     *
+     * CRITICAL: this check used to be `blockEntity instanceof MechanicalPressBlockEntity || ...`,
+     * which crashed the game on boot with a ClassCircularityError. SmartBlockEntityMixin and
+     * KineticBlockEntityMixin are @Mixin(SmartBlockEntity.class)/@Mixin(KineticBlockEntity.class) -
+     * their injected method bodies get merged directly into SmartBlockEntity's/KineticBlockEntity's
+     * own classfiles. An `instanceof MechanicalPressBlockEntity` reference inside that merged
+     * bytecode forces the JVM to resolve and load MechanicalPressBlockEntity while
+     * SmartBlockEntity/KineticBlockEntity is itself still in the middle of loading - but
+     * MechanicalPressBlockEntity extends BasinOperatingBlockEntity extends KineticBlockEntity
+     * extends SmartBlockEntity, so that load immediately needs SmartBlockEntity/KineticBlockEntity
+     * again, which the classloader is already in the process of defining. That's a textbook
+     * circular class load, not just a style nit - using `getClass().getSimpleName()` string
+     * comparison instead means SmartBlockEntity/KineticBlockEntity's merged bytecode (and this
+     * class, which they transitively load) never contains a symbolic reference to any of these
+     * subclasses at all, so loading them never re-enters the base class's own loading.
+     */
+    private static final Set<String> STATIC_UNTIL_IN_USE_CLASS_NAMES = Set.of(
+            "MechanicalPressBlockEntity",
+            "MechanicalMixerBlockEntity",
+            "DeployerBlockEntity",
+            "MechanicalCrafterBlockEntity",
+            "ArmBlockEntity"
+    );
+
+    public static boolean isStaticUntilInUseMachine(BlockEntity blockEntity) {
+        if (blockEntity == null) {
+            return false;
+        }
+        return STATIC_UNTIL_IN_USE_CLASS_NAMES.contains(blockEntity.getClass().getSimpleName());
+    }
 
     @Mod.EventBusSubscriber(modid = MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
     public static class KeyRegistration {

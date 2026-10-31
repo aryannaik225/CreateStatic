@@ -29,14 +29,24 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * them does AFTER that super call (belt entity transport/sound, chain conveyor package logic), so
  * they still need their own dedicated cancel - see BeltBlockEntityMixin and
  * ChainConveyorBlockEntityMixin.
+ *
+ * Exempts the "Static Until In Use" machines (see CreateStaticConfig#isStaticUntilInUseMachine) -
+ * Mechanical Press, Mechanical Mixer, Deployer, Mechanical Crafter and Mechanical Arm. Their recipe/
+ * movement state (and, for Press/Mixer, the recipe-start trigger itself) is driven from inside
+ * tick(), so cancelling it here would both desync their Flywheel visuals from server state and
+ * permanently strand them idle. Their rotating parts (shafts/cogs) still freeze independently at
+ * the Flywheel visual layer (FlywheelVisualMixin etc.), so this exemption only restores their
+ * tick()-driven animation, not kinetic rotation.
  */
 @Mixin(KineticBlockEntity.class)
 public abstract class KineticBlockEntityMixin {
 
     @Inject(method = "tick", at = @At("HEAD"), cancellable = true, remap = false)
     private void createstatic$tick(CallbackInfo ci) {
-        Level level = ((BlockEntity) (Object) this).getLevel();
-        if (level != null && level.isClientSide && CreateStaticConfig.STATIC_MODE_ENABLED) {
+        BlockEntity blockEntity = (BlockEntity) (Object) this;
+        Level level = blockEntity.getLevel();
+        if (level != null && level.isClientSide && CreateStaticConfig.STATIC_MODE_ENABLED
+                && !CreateStaticConfig.isStaticUntilInUseMachine(blockEntity)) {
             ci.cancel();
         }
     }
