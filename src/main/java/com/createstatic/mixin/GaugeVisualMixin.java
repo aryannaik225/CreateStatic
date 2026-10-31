@@ -33,7 +33,7 @@ public abstract class GaugeVisualMixin {
 
     @Inject(method = "beginFrame", at = @At("HEAD"), cancellable = true, remap = false)
     private void createstatic$beginFrame(DynamicVisual.Context context, CallbackInfo ci) {
-        if (CreateStaticConfig.STATIC_MODE_ENABLED) {
+        if (CreateStaticConfig.isMiscFrozen()) {
             if (createstatic$frozen) {
                 ci.cancel();
             } else {

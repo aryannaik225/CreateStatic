@@ -57,14 +57,14 @@ public abstract class ChainConveyorVisualMixin {
     @Inject(method = "<init>", at = @At("RETURN"), remap = false)
     private void createstatic$freezeShaftOnInit(VisualizationContext context, ChainConveyorBlockEntity blockEntity,
                                                   float partialTick, CallbackInfo ci) {
-        if (CreateStaticConfig.STATIC_MODE_ENABLED) {
+        if (CreateStaticConfig.isBeltsFrozen()) {
             createstatic$freezeShaft();
         }
     }
 
     @Inject(method = "update", at = @At("HEAD"), cancellable = true, remap = false)
     private void createstatic$updateHead(float partialTicks, CallbackInfo ci) {
-        if (CreateStaticConfig.STATIC_MODE_ENABLED) {
+        if (CreateStaticConfig.isBeltsFrozen()) {
             if (!createstatic$shaftFrozen) {
                 createstatic$freezeShaft();
             }
@@ -76,14 +76,14 @@ public abstract class ChainConveyorVisualMixin {
 
     @Inject(method = "tick", at = @At("HEAD"), cancellable = true, remap = false)
     private void createstatic$tick(TickableVisual.Context context, CallbackInfo ci) {
-        if (CreateStaticConfig.STATIC_MODE_ENABLED) {
+        if (CreateStaticConfig.isBeltsFrozen()) {
             ci.cancel();
         }
     }
 
     @Inject(method = "beginFrame", at = @At("HEAD"), cancellable = true, remap = false)
     private void createstatic$freezeBeginFrame(DynamicVisual.Context context, CallbackInfo ci) {
-        if (CreateStaticConfig.STATIC_MODE_ENABLED) {
+        if (CreateStaticConfig.isBeltsFrozen()) {
             ci.cancel();
         }
     }

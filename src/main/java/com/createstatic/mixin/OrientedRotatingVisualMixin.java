@@ -45,14 +45,14 @@ public abstract class OrientedRotatingVisualMixin {
     @Inject(method = "<init>", at = @At("RETURN"), remap = false)
     private void createstatic$onInit(VisualizationContext context, KineticBlockEntity blockEntity, float partialTick,
                                        Direction direction1, Direction direction2, Model model, CallbackInfo ci) {
-        if (CreateStaticConfig.STATIC_MODE_ENABLED) {
+        if (CreateStaticConfig.isRelaysFrozen()) {
             createstatic$freeze();
         }
     }
 
     @Inject(method = "update", at = @At("HEAD"), cancellable = true, remap = false)
     private void createstatic$updateHead(float partialTicks, CallbackInfo ci) {
-        if (CreateStaticConfig.STATIC_MODE_ENABLED) {
+        if (CreateStaticConfig.isRelaysFrozen()) {
             if (!createstatic$frozen) {
                 createstatic$freeze();
             }

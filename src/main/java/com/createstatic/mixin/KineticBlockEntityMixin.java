@@ -45,7 +45,7 @@ public abstract class KineticBlockEntityMixin {
     private void createstatic$tick(CallbackInfo ci) {
         BlockEntity blockEntity = (BlockEntity) (Object) this;
         Level level = blockEntity.getLevel();
-        if (level != null && level.isClientSide && CreateStaticConfig.STATIC_MODE_ENABLED
+        if (level != null && level.isClientSide && CreateStaticConfig.isMasterEnabled()
                 && !CreateStaticConfig.isStaticUntilInUseMachine(blockEntity)) {
             ci.cancel();
         }

@@ -71,6 +71,14 @@ description='''${mod_description}'''
     versionRange="${minecraft_version_range}"
     ordering="NONE"
     side="BOTH"
+# Cloth Config is bundled by the CABIN modpack and powers the mod's config screen. Not mandatory so
+# the mod still loads (minus the config screen) if it's ever missing.
+[[dependencies.${mod_id}]]
+    modId="cloth_config"
+    mandatory=false
+    versionRange="[11,)"
+    ordering="NONE"
+    side="CLIENT"
 
 # Features are specific properties of the game environment, that you may want to declare you require. This example declares
 # that your mod requires GL version 3.2 or higher. Other features will be added. They are side aware so declaring this won't

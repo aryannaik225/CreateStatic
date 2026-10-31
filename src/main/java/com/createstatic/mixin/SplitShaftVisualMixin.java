@@ -42,14 +42,14 @@ public abstract class SplitShaftVisualMixin {
     @Inject(method = "<init>", at = @At("RETURN"), remap = false)
     private void createstatic$onInit(VisualizationContext context, SplitShaftBlockEntity blockEntity,
                                        float partialTick, CallbackInfo ci) {
-        if (CreateStaticConfig.STATIC_MODE_ENABLED) {
+        if (CreateStaticConfig.isTransmissionsFrozen()) {
             createstatic$freeze();
         }
     }
 
     @Inject(method = "update", at = @At("HEAD"), cancellable = true, remap = false)
     private void createstatic$updateHead(float partialTicks, CallbackInfo ci) {
-        if (CreateStaticConfig.STATIC_MODE_ENABLED) {
+        if (CreateStaticConfig.isTransmissionsFrozen()) {
             if (!createstatic$frozen) {
                 createstatic$freeze();
             }

@@ -36,7 +36,7 @@ public abstract class ChainConveyorRendererMixin {
     private void createstatic$hideBox(ChainConveyorBlockEntity blockEntity, PoseStack poseStack,
                                        MultiBufferSource bufferSource, int overlay, BlockPos pos,
                                        ChainConveyorPackage pkg, float partialTicks, CallbackInfo ci) {
-        if (CreateStaticConfig.STATIC_MODE_ENABLED) {
+        if (CreateStaticConfig.isBeltsFrozen()) {
             ci.cancel();
         }
     }
@@ -45,7 +45,7 @@ public abstract class ChainConveyorRendererMixin {
             target = "Lnet/createmod/catnip/animation/AnimationTickHolder;getRenderTime(Lnet/minecraft/world/level/LevelAccessor;)F"),
             remap = false)
     private float createstatic$freezeChainScroll(LevelAccessor level) {
-        if (CreateStaticConfig.STATIC_MODE_ENABLED) {
+        if (CreateStaticConfig.isBeltsFrozen()) {
             return 0f;
         }
         return AnimationTickHolder.getRenderTime(level);

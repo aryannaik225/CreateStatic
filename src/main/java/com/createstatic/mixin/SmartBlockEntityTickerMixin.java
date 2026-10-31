@@ -32,7 +32,7 @@ public abstract class SmartBlockEntityTickerMixin {
 
     @Inject(method = "tick", at = @At("HEAD"), cancellable = true, remap = false)
     private void createstatic$tick(Level level, BlockPos pos, BlockState state, BlockEntity blockEntity, CallbackInfo ci) {
-        if (level != null && level.isClientSide && CreateStaticConfig.STATIC_MODE_ENABLED
+        if (level != null && level.isClientSide && CreateStaticConfig.isMasterEnabled()
                 && !CreateStaticConfig.isStaticUntilInUseMachine(blockEntity)) {
             ci.cancel();
         }

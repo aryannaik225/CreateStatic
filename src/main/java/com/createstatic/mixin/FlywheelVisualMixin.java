@@ -55,7 +55,7 @@ public abstract class FlywheelVisualMixin {
             at = @At("RETURN"), remap = false)
     private void createstatic$onInit(VisualizationContext context, KineticBlockEntity blockEntity, float partialTick,
                                        Direction direction, Model model, CallbackInfo ci) {
-        if (CreateStaticConfig.STATIC_MODE_ENABLED && !((Object) this instanceof ChainConveyorVisual)) {
+        if (CreateStaticConfig.isRelaysFrozen() && !((Object) this instanceof ChainConveyorVisual)) {
             createstatic$freeze();
         }
     }
@@ -66,7 +66,7 @@ public abstract class FlywheelVisualMixin {
             return;
         }
 
-        if (CreateStaticConfig.STATIC_MODE_ENABLED) {
+        if (CreateStaticConfig.isRelaysFrozen()) {
             if (!createstatic$frozen) {
                 createstatic$freeze();
             }
@@ -78,7 +78,7 @@ public abstract class FlywheelVisualMixin {
 
     @Inject(method = "tick", at = @At("HEAD"), cancellable = true, remap = false)
     private void createstatic$tick(TickableVisual.Context context, CallbackInfo ci) {
-        if (CreateStaticConfig.STATIC_MODE_ENABLED) {
+        if (CreateStaticConfig.isRelaysFrozen()) {
             ci.cancel();
         }
     }

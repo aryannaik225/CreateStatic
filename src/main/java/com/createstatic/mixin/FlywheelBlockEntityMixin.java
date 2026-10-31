@@ -23,7 +23,7 @@ public abstract class FlywheelBlockEntityMixin {
     @Inject(method = "tick", at = @At("HEAD"), cancellable = true, remap = false)
     private void createstatic$tick(CallbackInfo ci) {
         Level level = ((BlockEntity) (Object) this).getLevel();
-        if (level != null && level.isClientSide && CreateStaticConfig.STATIC_MODE_ENABLED) {
+        if (level != null && level.isClientSide && CreateStaticConfig.isMiscFrozen()) {
             ci.cancel();
         }
     }

@@ -44,14 +44,14 @@ public abstract class SawVisualMixin {
     @Inject(method = "<init>", at = @At("RETURN"), remap = false)
     private void createstatic$onInit(VisualizationContext context, SawBlockEntity blockEntity,
                                        float partialTick, CallbackInfo ci) {
-        if (CreateStaticConfig.STATIC_MODE_ENABLED) {
+        if (CreateStaticConfig.isProcessingFrozen()) {
             createstatic$freeze();
         }
     }
 
     @Inject(method = "update", at = @At("HEAD"), cancellable = true, remap = false)
     private void createstatic$update(float partialTicks, CallbackInfo ci) {
-        if (CreateStaticConfig.STATIC_MODE_ENABLED) {
+        if (CreateStaticConfig.isProcessingFrozen()) {
             createstatic$freeze();
             ci.cancel();
         }

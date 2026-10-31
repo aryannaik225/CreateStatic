@@ -48,7 +48,7 @@ public abstract class BeltVisualMixin {
     @Inject(method = "<init>", at = @At("RETURN"), remap = false)
     private void createstatic$freezeOnInit(VisualizationContext context, BeltBlockEntity blockEntity,
                                             float partialTick, CallbackInfo ci) {
-        if (CreateStaticConfig.STATIC_MODE_ENABLED) {
+        if (CreateStaticConfig.isBeltsFrozen()) {
             createstatic$freeze();
             createstatic$frozen = true;
         }
@@ -56,7 +56,7 @@ public abstract class BeltVisualMixin {
 
     @Inject(method = "update", at = @At("HEAD"), cancellable = true, remap = false)
     private void createstatic$updateHead(float partialTicks, CallbackInfo ci) {
-        if (CreateStaticConfig.STATIC_MODE_ENABLED) {
+        if (CreateStaticConfig.isBeltsFrozen()) {
             if (!createstatic$frozen) {
                 createstatic$freeze();
                 createstatic$frozen = true;

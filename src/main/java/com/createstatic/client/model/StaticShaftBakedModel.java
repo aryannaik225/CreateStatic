@@ -16,7 +16,7 @@ import java.util.List;
  * StaticShaftOverlayGeometry#bake() using the real ModelState the blockstate pipeline supplies for
  * that specific variant - so both already carry the correct per-axis rotation for free, the same
  * way the two halves of a stairs/door model would. Which one actually gets used is decided fresh on
- * every call by reading CreateStaticConfig.STATIC_MODE_ENABLED live, so flipping the F9 toggle (and
+ * every call by reading CreateStaticConfig.isRelaysFrozen() live, so flipping the F9 toggle (and
  * the levelRenderer.allChanged() it triggers) picks up the new choice on the very next chunk
  * rebuild without needing a resource reload.
  */
@@ -31,7 +31,7 @@ public class StaticShaftBakedModel implements BakedModel {
     }
 
     private BakedModel active() {
-        return CreateStaticConfig.STATIC_MODE_ENABLED ? withShaft : base;
+        return CreateStaticConfig.isRelaysFrozen() ? withShaft : base;
     }
 
     @Override

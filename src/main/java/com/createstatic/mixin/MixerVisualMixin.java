@@ -45,7 +45,7 @@ public abstract class MixerVisualMixin {
 
     @Inject(method = "animate", at = @At("RETURN"), remap = false)
     private void createstatic$afterAnimate(float partialTicks, CallbackInfo ci) {
-        if (CreateStaticConfig.STATIC_MODE_ENABLED && mixer != null && !mixer.running && mixerHead != null) {
+        if (CreateStaticConfig.isProcessingFrozen() && mixer != null && !mixer.running && mixerHead != null) {
             mixerHead.rotationalSpeed = 0f;
             mixerHead.setChanged();
         }

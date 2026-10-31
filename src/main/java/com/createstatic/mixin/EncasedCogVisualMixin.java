@@ -47,14 +47,14 @@ public abstract class EncasedCogVisualMixin {
     @Inject(method = "<init>", at = @At("RETURN"), remap = false)
     private void createstatic$onInit(VisualizationContext context, KineticBlockEntity blockEntity, boolean large,
                                        float partialTick, Model model, CallbackInfo ci) {
-        if (CreateStaticConfig.STATIC_MODE_ENABLED) {
+        if (CreateStaticConfig.isTransmissionsFrozen()) {
             createstatic$freeze();
         }
     }
 
     @Inject(method = "update", at = @At("HEAD"), cancellable = true, remap = false)
     private void createstatic$update(float partialTicks, CallbackInfo ci) {
-        if (CreateStaticConfig.STATIC_MODE_ENABLED) {
+        if (CreateStaticConfig.isTransmissionsFrozen()) {
             createstatic$freeze();
             ci.cancel();
         }

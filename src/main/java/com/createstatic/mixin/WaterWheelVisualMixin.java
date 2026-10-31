@@ -39,14 +39,14 @@ public abstract class WaterWheelVisualMixin {
     @Inject(method = "<init>", at = @At("RETURN"), remap = false)
     private void createstatic$onInit(VisualizationContext context, WaterWheelBlockEntity blockEntity,
                                        boolean large, float partialTick, CallbackInfo ci) {
-        if (CreateStaticConfig.STATIC_MODE_ENABLED) {
+        if (CreateStaticConfig.isGeneratorsFrozen()) {
             createstatic$freeze();
         }
     }
 
     @Inject(method = "update", at = @At("HEAD"), cancellable = true, remap = false)
     private void createstatic$updateHead(float partialTicks, CallbackInfo ci) {
-        if (CreateStaticConfig.STATIC_MODE_ENABLED) {
+        if (CreateStaticConfig.isGeneratorsFrozen()) {
             if (!createstatic$frozen) {
                 createstatic$freeze();
             }

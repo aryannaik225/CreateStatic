@@ -1,28 +1,103 @@
 package com.createstatic;
 
-import net.minecraft.client.KeyMapping;
-import net.minecraft.client.Minecraft;
-import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
-import org.lwjgl.glfw.GLFW;
+import net.minecraftforge.common.ForgeConfigSpec;
 
 import java.util.Set;
 
 /**
- * Holds the global static-mode toggle and the F9 keybind that flips it.
+ * Client-side {@link ForgeConfigSpec} for CreateStatic: a master toggle (also flipped in-game via
+ * F9, see {@link CreateStaticClientEvents}) plus granular per-category toggles. Every Mixin that
+ * freezes a kinetic block checks one of the {@code isXFrozen()} helpers below instead of a raw
+ * boolean, so disabling a category in the config (or the Cloth Config screen) leaves that category's
+ * blocks rendering/ticking exactly like vanilla Create while every other category stays frozen.
+ *
+ * The three base-class "Hard Logic Cull" mixins (KineticBlockEntityMixin, SmartBlockEntityMixin,
+ * SmartBlockEntityTickerMixin) deliberately check only {@link #isMasterEnabled()}, not a category:
+ * they're injected into shared ancestor classes (KineticBlockEntity/SmartBlockEntity) that cover
+ * every category at once, and resolving "which category does this instance belong to" there would
+ * require an `instanceof` check against a concrete subclass symbol baked into that shared ancestor's
+ * own merged bytecode - the exact ClassCircularityError shape documented below for
+ * STATIC_UNTIL_IN_USE_CLASS_NAMES. Category granularity instead lives at the Flywheel Visual layer
+ * and the dedicated per-block BlockEntity mixins, which each target one concrete class and can safely
+ * call a specific isXFrozen() helper.
  */
 public class CreateStaticConfig {
 
     public static final String MOD_ID = "createstatic";
 
-    public static boolean STATIC_MODE_ENABLED = true;
+    public static final ForgeConfigSpec CLIENT_SPEC;
 
-    public static KeyMapping STATIC_MODE_TOGGLE_KEY;
+    public static final ForgeConfigSpec.BooleanValue MASTER_TOGGLE;
+    public static final ForgeConfigSpec.BooleanValue FREEZE_BELTS;
+    public static final ForgeConfigSpec.BooleanValue FREEZE_RELAYS;
+    public static final ForgeConfigSpec.BooleanValue FREEZE_TRANSMISSIONS;
+    public static final ForgeConfigSpec.BooleanValue FREEZE_PROCESSING;
+    public static final ForgeConfigSpec.BooleanValue FREEZE_GENERATORS;
+    public static final ForgeConfigSpec.BooleanValue FREEZE_MISC;
+
+    static {
+        ForgeConfigSpec.Builder builder = new ForgeConfigSpec.Builder();
+
+        builder.push("general");
+        MASTER_TOGGLE = builder
+                .comment("Master switch for CreateStatic. Also bound to the F9 key in-game.",
+                        "When false, every kinetic block renders and ticks exactly like vanilla Create.")
+                .define("masterToggle", true);
+        builder.pop();
+
+        builder.push("categories");
+        FREEZE_BELTS = builder
+                .comment("Freeze Belts, Chain Conveyors and Frogport Chains.")
+                .define("freezeBelts", true);
+        FREEZE_RELAYS = builder
+                .comment("Freeze Shafts, Cogwheels and other plain rotation relays.")
+                .define("freezeRelays", true);
+        FREEZE_TRANSMISSIONS = builder
+                .comment("Freeze Gearboxes, Gearshifts, Clutches and Encased Chain Drives.")
+                .define("freezeTransmissions", true);
+        FREEZE_PROCESSING = builder
+                .comment("Freeze processing machines: Mechanical Mixers, Saws and Millstones.")
+                .define("freezeProcessing", true);
+        FREEZE_GENERATORS = builder
+                .comment("Freeze power generators: Water Wheels and Windmill Bearings.")
+                .define("freezeGenerators", true);
+        FREEZE_MISC = builder
+                .comment("Freeze everything else: Fans, Gauges, Hand Cranks, Flywheels,",
+                        "Mechanical/Clockwork Bearings and Item Vaults.")
+                .define("freezeMisc", true);
+        builder.pop();
+
+        CLIENT_SPEC = builder.build();
+    }
+
+    public static boolean isMasterEnabled() {
+        return MASTER_TOGGLE.get();
+    }
+
+    public static boolean isBeltsFrozen() {
+        return MASTER_TOGGLE.get() && FREEZE_BELTS.get();
+    }
+
+    public static boolean isRelaysFrozen() {
+        return MASTER_TOGGLE.get() && FREEZE_RELAYS.get();
+    }
+
+    public static boolean isTransmissionsFrozen() {
+        return MASTER_TOGGLE.get() && FREEZE_TRANSMISSIONS.get();
+    }
+
+    public static boolean isProcessingFrozen() {
+        return MASTER_TOGGLE.get() && FREEZE_PROCESSING.get();
+    }
+
+    public static boolean isGeneratorsFrozen() {
+        return MASTER_TOGGLE.get() && FREEZE_GENERATORS.get();
+    }
+
+    public static boolean isMiscFrozen() {
+        return MASTER_TOGGLE.get() && FREEZE_MISC.get();
+    }
 
     /**
      * "Static Until In Use" machines: Mechanical Press, Mechanical Mixer, Deployer, Mechanical
@@ -96,48 +171,5 @@ public class CreateStaticConfig {
             return false;
         }
         return STATIC_UNTIL_IN_USE_CLASS_NAMES.contains(blockEntity.getClass().getSimpleName());
-    }
-
-    @Mod.EventBusSubscriber(modid = MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
-    public static class KeyRegistration {
-        @SubscribeEvent
-        public static void registerKeyMappings(RegisterKeyMappingsEvent event) {
-            STATIC_MODE_TOGGLE_KEY = new KeyMapping(
-                    "key.createstatic.toggle_static_mode",
-                    GLFW.GLFW_KEY_F9,
-                    "Create Static FPS"
-            );
-            event.register(STATIC_MODE_TOGGLE_KEY);
-        }
-    }
-
-    @Mod.EventBusSubscriber(modid = MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
-    public static class ClientTickHandler {
-        @SubscribeEvent
-        public static void onClientTick(TickEvent.ClientTickEvent event) {
-            if (event.phase != TickEvent.Phase.END) {
-                return;
-            }
-            if (STATIC_MODE_TOGGLE_KEY == null) {
-                return;
-            }
-            while (STATIC_MODE_TOGGLE_KEY.consumeClick()) {
-                toggleStaticMode();
-            }
-        }
-
-        private static void toggleStaticMode() {
-            STATIC_MODE_ENABLED = !STATIC_MODE_ENABLED;
-
-            Minecraft minecraft = Minecraft.getInstance();
-            if (minecraft.levelRenderer != null) {
-                minecraft.levelRenderer.allChanged();
-            }
-
-            if (minecraft.player != null) {
-                String state = STATIC_MODE_ENABLED ? "ON" : "OFF";
-                minecraft.player.displayClientMessage(Component.literal("Create Static Mode: " + state), true);
-            }
-        }
     }
 }

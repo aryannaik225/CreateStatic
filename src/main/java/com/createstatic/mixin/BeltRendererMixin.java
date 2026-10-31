@@ -27,7 +27,7 @@ public abstract class BeltRendererMixin {
     private void createstatic$renderItems(BeltBlockEntity blockEntity, float partialTicks, PoseStack poseStack,
                                            MultiBufferSource bufferSource, int packedLight, int packedOverlay,
                                            CallbackInfo ci) {
-        if (CreateStaticConfig.STATIC_MODE_ENABLED) {
+        if (CreateStaticConfig.isBeltsFrozen()) {
             ci.cancel();
         }
     }
