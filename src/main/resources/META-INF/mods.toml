@@ -50,3 +50,10 @@ Features:
     versionRange="[11,)"
     ordering="NONE"
     side="CLIENT"
+
+    [[dependencies.createstatic]]
+    modId="flywheel"
+    mandatory=true
+    versionRange="[0.6.0,)"
+    ordering="AFTER"
+    side="CLIENT"
