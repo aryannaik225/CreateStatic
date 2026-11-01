@@ -38,19 +38,13 @@ Instead of fighting Flywheel, we work *with* it:
 
 The result: your factory *looks* exactly the same, costs a fraction of the CPU/GPU budget, and your server's framerate stops apologizing for your creativity.
 
-<!--
-TODO: FPS comparison screenshots.
-Uncomment and fill in once the images are added (e.g. assets/fps_before.png and assets/fps_after.png),
-showing the same factory area at low FPS (vanilla Create) vs high FPS (with CreateStatic enabled).
-
 <div align="center">
 
 | Before CreateStatic | After CreateStatic |
 |---|---|
-| ![Low FPS](assets/fps_before.png) | ![High FPS](assets/fps_after.png) |
+| ![Low FPS](assets/before_image.png) | ![High FPS](assets/after_image.png) |
 
 </div>
--->
 
 ## ✨ Feature Highlight: "Static Until In Use"
 
