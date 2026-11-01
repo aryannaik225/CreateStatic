@@ -6,6 +6,11 @@
 
 **Stop paying FPS for blocks nobody is looking at.**
 
+[![Available on CurseForge](https://img.shields.io/badge/CurseForge-Available-F16436?style=for-the-badge&logo=curseforge)](https://www.curseforge.com/minecraft/mc-mods/createstatic)
+[![Available on Modrinth](https://img.shields.io/badge/Modrinth-Available-00AF5C?style=for-the-badge&logo=modrinth)](https://modrinth.com/mod/createstatic)
+
+<br>
+
 [![Minecraft](https://img.shields.io/badge/Minecraft-1.20.1-62B47A?style=for-the-badge&logo=minecraft)](https://www.minecraft.net/)
 [![Forge](https://img.shields.io/badge/Forge-47.4.10%2B-1F2937?style=for-the-badge)](https://files.minecraftforge.net/)
 [![Create](https://img.shields.io/badge/Create-6.0.8-D97706?style=for-the-badge)](https://www.curseforge.com/minecraft/mc-mods/create)
