@@ -20,6 +20,7 @@
     "EncasedCogVisualMixin",
     "BearingVisualMixin",
     "FanVisualMixin",
+    "FanVisualLodMixin",
     "CreateFlywheelVisualMixin",
     "HandCrankVisualMixin",
     "GaugeVisualMixin",
@@ -37,7 +38,8 @@
     "SmartBlockEntityMixin",
     "ItemVaultBlockEntityMixin",
     "FrogportBlockEntityMixin",
-    "SingleAxisRotatingVisualAccessor"
+    "SingleAxisRotatingVisualAccessor",
+    "AbstractBlockEntityVisualAccessor"
   ],
   "Injectors": {
     "defaultRequire": 1
