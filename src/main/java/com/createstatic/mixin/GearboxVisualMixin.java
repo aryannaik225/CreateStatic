@@ -23,11 +23,16 @@ import java.util.EnumMap;
  * with the shaft/cogwheel/chain-drive instances, only their rotationalSpeed needs pinning to zero so
  * Flywheel has nothing to animate and the CPU has nothing to recompute.
  *
- * This is a one-shot: HEAD zeroes every peg's rotationalSpeed exactly once on the transition into
- * static mode and cancels the rest of update() outright (which would otherwise re-run
- * updateSourceFacing() and RotatingInstance#setup()+setChanged() for every entry in keys every tick).
- * On the way back out, clearing the frozen flag alone is enough - update() is no longer cancelled, so
- * its real body resumes computing live peg rotation itself.
+ * FIXED (was a one-shot): the original approach cancelled update() outright while frozen, which also
+ * skipped `updateSourceFacing()` forever. `sourceFacing` is what `getSpeed(Direction)` uses to flip
+ * the sign of each perpendicular peg's speed relative to the source side; with it stuck null/stale
+ * (e.g. frozen before a neighbour ever attached, or a neighbour changed while frozen) `getSpeed()`
+ * falls back to returning the gearbox's raw network speed unmodified for every direction instead of
+ * alternating sign per output - visually every peg spins the same way, looking like shafts are
+ * "active"/connected on sides that never had a neighbour. `updateSourceFacing()` is two field reads
+ * and a Direction lookup - cheap - so it now runs unconditionally every tick regardless of frozen
+ * state; only the actually expensive part (the per-key RotatingInstance#setup()+setChanged() loop)
+ * is skipped by keeping every peg pinned to rotationalSpeed=0 instead.
  */
 @Mixin(GearboxVisual.class)
 public abstract class GearboxVisualMixin {
@@ -36,8 +41,8 @@ public abstract class GearboxVisualMixin {
     @Final
     protected EnumMap<Direction, RotatingInstance> keys;
 
-    @Unique
-    private boolean createstatic$frozen = false;
+    @Shadow(remap = false)
+    protected abstract void updateSourceFacing();
 
     @Inject(method = "<init>", at = @At("RETURN"), remap = false)
     private void createstatic$onInit(VisualizationContext context, GearboxBlockEntity blockEntity,
@@ -49,13 +54,11 @@ public abstract class GearboxVisualMixin {
 
     @Inject(method = "update", at = @At("HEAD"), cancellable = true, remap = false)
     private void createstatic$updateHead(float partialTicks, CallbackInfo ci) {
+        updateSourceFacing();
+
         if (CreateStaticConfig.isTransmissionsFrozen()) {
-            if (!createstatic$frozen) {
-                createstatic$freeze();
-            }
+            createstatic$freeze();
             ci.cancel();
-        } else {
-            createstatic$frozen = false;
         }
     }
 
@@ -67,6 +70,5 @@ public abstract class GearboxVisualMixin {
                 rotatingModel.setChanged();
             }
         }
-        createstatic$frozen = true;
     }
 }

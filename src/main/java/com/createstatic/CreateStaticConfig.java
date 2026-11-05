@@ -35,6 +35,7 @@ public class CreateStaticConfig {
     public static final ForgeConfigSpec.BooleanValue FREEZE_PROCESSING;
     public static final ForgeConfigSpec.BooleanValue FREEZE_GENERATORS;
     public static final ForgeConfigSpec.BooleanValue FREEZE_MISC;
+    public static final ForgeConfigSpec.IntValue LOD_DISTANCE_THRESHOLD;
 
     static {
         ForgeConfigSpec.Builder builder = new ForgeConfigSpec.Builder();
@@ -66,6 +67,14 @@ public class CreateStaticConfig {
                 .comment("Freeze everything else: Fans, Gauges, Hand Cranks, Flywheels,",
                         "Mechanical/Clockwork Bearings and Item Vaults.")
                 .define("freezeMisc", true);
+        builder.pop();
+
+        builder.push("lod");
+        LOD_DISTANCE_THRESHOLD = builder
+                .comment("Squared-distance threshold (in blocks) past which v1.1 LOD culling drops",
+                        "sub-component instances (fan blades, inner shafts, etc.) and keeps only the",
+                        "outer casing instance active.")
+                .defineInRange("lodDistanceThreshold", 32, 16, 128);
         builder.pop();
 
         CLIENT_SPEC = builder.build();

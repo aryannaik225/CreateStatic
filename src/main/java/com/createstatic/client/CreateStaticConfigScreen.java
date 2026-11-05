@@ -5,6 +5,7 @@ import me.shedaniel.clothconfig2.api.ConfigBuilder;
 import me.shedaniel.clothconfig2.api.ConfigCategory;
 import me.shedaniel.clothconfig2.api.ConfigEntryBuilder;
 import me.shedaniel.clothconfig2.gui.entries.BooleanListEntry;
+import me.shedaniel.clothconfig2.gui.entries.IntegerSliderEntry;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraftforge.common.ForgeConfigSpec;
@@ -56,6 +57,13 @@ public class CreateStaticConfigScreen {
                 "Fans, Gauges, Hand Cranks, Flywheels, Mechanical/Clockwork Bearings and Item Vaults.",
                 CreateStaticConfig.FREEZE_MISC));
 
+        ConfigCategory performance = builder.getOrCreateCategory(Component.literal("Performance & LOD"));
+        performance.addEntry(intSliderEntry(entryBuilder,
+                "LOD Distance Threshold",
+                "Distance (in blocks) past which sub-component instances (fan blades, inner shafts, etc.) "
+                        + "are culled, keeping only the outer casing instance active.",
+                CreateStaticConfig.LOD_DISTANCE_THRESHOLD));
+
         return builder.build();
     }
 
@@ -63,6 +71,15 @@ public class CreateStaticConfigScreen {
             String tooltip, ForgeConfigSpec.BooleanValue value) {
         return entryBuilder.startBooleanToggle(Component.literal(label), value.get())
                 .setDefaultValue(true)
+                .setTooltip(Component.literal(tooltip))
+                .setSaveConsumer(value::set)
+                .build();
+    }
+
+    private static IntegerSliderEntry intSliderEntry(ConfigEntryBuilder entryBuilder, String label,
+            String tooltip, ForgeConfigSpec.IntValue value) {
+        return entryBuilder.startIntSlider(Component.literal(label), value.get(), 16, 128)
+                .setDefaultValue(32)
                 .setTooltip(Component.literal(tooltip))
                 .setSaveConsumer(value::set)
                 .build();

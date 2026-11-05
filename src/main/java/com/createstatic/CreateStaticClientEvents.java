@@ -1,5 +1,7 @@
 package com.createstatic;
 
+import com.createstatic.util.CameraDistanceUtil;
+import com.createstatic.util.FanLodTracker;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -36,7 +38,14 @@ public class CreateStaticClientEvents {
     public static class ClientTickHandler {
         @SubscribeEvent
         public static void onClientTick(TickEvent.ClientTickEvent event) {
-            if (event.phase != TickEvent.Phase.END || STATIC_MODE_TOGGLE_KEY == null) {
+            if (event.phase != TickEvent.Phase.END) {
+                return;
+            }
+
+            CameraDistanceUtil.refreshCachedCameraPosition();
+            FanLodTracker.tickAll();
+
+            if (STATIC_MODE_TOGGLE_KEY == null) {
                 return;
             }
             while (STATIC_MODE_TOGGLE_KEY.consumeClick()) {
